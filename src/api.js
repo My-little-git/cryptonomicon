@@ -1,50 +1,18 @@
-const apiKey = '471cf128f99ae236881a0c5ccc4c91c80d03343fe96e1dc4622e38abfc87d046';
 
 const tickersHandlers = {};
+const apiKey = 'cd1a21c480d77550041c6136a22187170ceea7a13231043fe3478f0e2c2eeb3f'
 
-const url = new URL('wss://streamer.cryptocompare.com/v2')
-url.searchParams.set('api_key', apiKey)
+const worker = new SharedWorker(new URL('./sharedWorker.js', import.meta.url))
 
-const socket = new WebSocket(url)
-const bc = new BroadcastChannel('cryptonomicon')
+worker.port.onmessage = (message) => {
 
-const AGGREGATE_INDEX = '5';
+    const data = message.data
 
-socket.onmessage = (e) => {
-    const { TYPE: type, FROMSYMBOL: ticker, PRICE: price} = JSON.parse(e.data)
+    const handlers = tickersHandlers[data.ticker];
 
-    if (type !== AGGREGATE_INDEX){
-        return;
-    }
+    handlers.forEach(fn => fn(data.ticker, data.price))
 
-    const handlers = tickersHandlers[ticker] || null;
-
-    bc.postMessage({ticker, price})
-
-    handlers.forEach(fn => fn(ticker, price))
 }
-
-bc.onmessage = (e) => {
-    
-    const data = e.data
-
-    if (Object.keys(data).toString() === ["ticker", "price"].toString()) {
-        const {ticker, price} = data
-
-        const handlers = tickersHandlers[ticker] ?? null;
-
-        if (handlers) handlers.forEach(fn => fn(ticker, price))
-    }
-
-    if (Object.keys(data).toString() === ["action", "subs"].toString()) {
-        if (socket.readyState !== WebSocket.OPEN) {
-            return
-        }
-
-        socket.send(JSON.stringify(data))
-    }
-}
-
 
 async function loadCoinList() {
     const url = new URL('https://min-api.cryptocompare.com/data/blockchain/list')
@@ -56,36 +24,17 @@ async function loadCoinList() {
     return Object.keys(data.Data)
 }
 
-function sendToWebSocket(query) {
-
-    const message = JSON.stringify(query)
-
-    if (socket.readyState === WebSocket.OPEN) {
-        socket.send(message)
-        return
-    }
-
-    socket.addEventListener('open', () => socket.send(message), {once: true})
-
-    if (socket.readyState === WebSocket.CLOSED) {
-        bc.postMessage(query)
-        return;
-    }
-
-    socket.addEventListener('close', () => bc.postMessage(query), {once: true})
-}
-
 function subscribeToTickerOnWs(tickerName) {
-    sendToWebSocket({
+    worker.port.postMessage({
         action: "SubAdd",
-        subs: [`5~CCCAGG~${tickerName}~USD`]
+        ticker: tickerName
     })
 }
 
 function unsubscribeToTickerOnWs(tickerName) {
-    sendToWebSocket({
+    worker.port.postMessage({
         action: "SubRemove",
-        subs: [`5~CCCAGG~${tickerName}~USD`]
+        ticker: tickerName
     })
 }
 
