@@ -232,7 +232,8 @@ export default {
               :key="t.name"
               @click="selectedTicker = t"
               :class="{
-                'border-4': selectedTicker === t
+                'border-4': selectedTicker === t,
+                'bg-red-100': t.price === '-',
               }"
               class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
           >
