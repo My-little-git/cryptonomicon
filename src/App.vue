@@ -40,7 +40,7 @@ export default {
     },
     similarCoins() {
       return this.coinList.filter(coin => new RegExp(`.*${this.ticker.toUpperCase()}.*`).test(coin))
-                 .slice(0, 4);
+                 .slice(0, this.numOfSimilar);
     },
     displayedGraph() {
       return this.graph[this.selectedTicker.name].slice(-this.maxGraphElements);
@@ -100,15 +100,22 @@ export default {
     return {
       ticker: '',
       tickers: [],
+
       selectedTicker: null,
+
       graph: {},
       maxGraphElements: 1,
       widthBar: null,
-      intervals: {},
+
       coinList: [],
+      numOfSimilar: 4,
+
       error: null,
+      errorTime: 3000,
+
       page: 1,
       perPage: 6,
+
       filter: '',
     }
   },
@@ -123,7 +130,7 @@ export default {
 
       if (isTickerAlreadyExist) {
         this.error = true
-        setTimeout(() => this.error = null, 3000);
+        setTimeout(() => this.error = null, this.errorTime);
         return;
       }
 
