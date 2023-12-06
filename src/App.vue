@@ -16,7 +16,14 @@ export default {
     this.filter = currentUrl.searchParams.get("filter") || ''
     this.page = +currentUrl.searchParams.get("page") || 1
 
+
     this.coinList = await loadCoinList()
+  },
+  mounted() {
+    window.addEventListener('resize', this.calculateMaxGraphElements)
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.calculateMaxGraphElements)
   },
   computed: {
     startIndex() {
@@ -35,8 +42,11 @@ export default {
       return this.coinList.filter(coin => new RegExp(`.*${this.ticker.toUpperCase()}.*`).test(coin))
                  .slice(0, 4);
     },
+    displayedGraph() {
+      return this.graph[this.selectedTicker.name].slice(-this.maxGraphElements);
+    },
     normalizedGraph() {
-      const graph = this.graph[this.selectedTicker.name];
+      const graph = this.displayedGraph;
       const maxValue = Math.max(...graph);
       const minValue = Math.min(...graph);
 
@@ -54,7 +64,7 @@ export default {
     },
     currentUrl() {
       return new URL(window.location.href)
-    }
+    },
   },
   watch: {
     filter() {
@@ -92,6 +102,8 @@ export default {
       tickers: [],
       selectedTicker: null,
       graph: {},
+      maxGraphElements: 1,
+      widthBar: null,
       intervals: {},
       coinList: [],
       error: null,
@@ -139,6 +151,11 @@ export default {
     formatPrice(price) {
       if (price === '-') return '-'
       return price > 1 ? price.toFixed(2) : price.toPrecision(3)
+    },
+    calculateMaxGraphElements() {
+      if (!this.$refs.barsWrapper) return;
+      if (!this.widthBar) this.widthBar = this.$refs.bars[0].offsetWidth
+      this.maxGraphElements = this.$refs.barsWrapper.clientWidth / this.widthBar
     }
   },
 }
@@ -274,14 +291,17 @@ export default {
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
           {{ selectedTicker.name }} - USD
         </h3>
-        <div class="flex items-end border-gray-600 border-b border-l h-64">
+        <div
+            ref="barsWrapper"
+            class="flex items-end border-gray-600 border-b border-l h-64">
           <div
               v-for="(bar, idx) in normalizedGraph"
               :key="idx"
               :style="{
                 height: `${bar}%`
               }"
-              class="bg-purple-800 border w-10 h-24"
+              class="bg-purple-800 border w-4 h-24"
+              ref="bars"
           ></div>
         </div>
         <button
